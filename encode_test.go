@@ -89,6 +89,8 @@ var rfc7049TestCases = []testCase{
 	{[]interface{}{"a", map[string]string{"b": "c"}}, "826161a161626163"},
 	{map[string]string{"a": "A", "b": "B", "c": "C", "d": "D", "e": "E"},
 		"a56161614161626142616361436164614461656145"},
+
+	// Indefinite-length examples omitted while there's no way to specify these to the encoder.
 }
 
 var additionalTestCases = []testCase{

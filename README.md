@@ -5,7 +5,8 @@ package implements CBOR as described in [RFC 7049](http://tools.ietf.org/html/rf
 
 **Status:** WIP, not ready for consumption.
 
-## TODO
+## TODO (or decide not to do)
 
 * Tag for encoding empty strings as nulls
 * Option to turn off unicode validity checking for strings for dat speed
+* Option to allow (a/all) lists to be encoded with indefinite length (or some streaming API)
