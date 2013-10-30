@@ -117,10 +117,10 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		if f == float64(f32) {
 			e.WriteByte(makeIDByte(typeMajor7, additionalLength[4]))
 			e.putUint32(math.Float32bits(f32))
-		} else {
-			e.WriteByte(makeIDByte(typeMajor7, additionalLength[8]))
-			e.putUint64(math.Float64bits(v.Float()))
+			return
 		}
+		e.WriteByte(makeIDByte(typeMajor7, additionalLength[8]))
+		e.putUint64(math.Float64bits(v.Float()))
 	case reflect.String:
 		s := v.String()
 		if !utf8.ValidString(s) {
@@ -128,6 +128,19 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		}
 		e.writeMajorWithNumber(typeTextString, uint64(len(s)))
 		e.WriteString(s)
+	case reflect.Slice:
+		if v.IsNil() {
+			e.writeSimple(typeNull)
+			return
+		}
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			// Byte slices are encoded as byte strings, not lists.
+			s := v.Bytes()
+			e.writeMajorWithNumber(typeByteString, uint64(len(s)))
+			e.Write(s)
+			return
+		}
+		panic("unimplemented")
 	default:
 		e.error(&UnsupportedTypeError{v.Type()})
 	}

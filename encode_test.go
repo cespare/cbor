@@ -63,8 +63,8 @@ var rfc7049TestCases = []testCase{
 	// TODO: all tagged examples
 
 	// Byte strings
-	//{[]byte{}, "40"},
-	//{[]byte(1, 2, 3, 4), "4401020304"},
+	{[]byte{}, "40"},
+	{[]byte{1, 2, 3, 4}, "4401020304"},
 
 	// Text string
 	{"", "60"},
@@ -73,7 +73,7 @@ var rfc7049TestCases = []testCase{
 	{"\"\\", "62225c"},
 	{"\u00fc", "62c3bc"},
 	{"\u6c34", "63e6b0b4"},
-	{"\U00010152", "64f0908591"},
+	{"\U00010151", "64f0908591"},
 }
 
 var additionalTestCases = []testCase{
