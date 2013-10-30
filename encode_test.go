@@ -85,6 +85,10 @@ var rfc7049TestCases = []testCase{
 	// Maps
 	{map[int]int{}, "a0"},
 	{map[int]int{1: 2, 3: 4}, "a201020304"},
+	{map[string]interface{}{"a": 1, "b": []int{2, 3}}, "a26161016162820203"},
+	{[]interface{}{"a", map[string]string{"b": "c"}}, "826161a161626163"},
+	{map[string]string{"a": "A", "b": "B", "c": "C", "d": "D", "e": "E"},
+		"a56161614161626142616361436164614461656145"},
 }
 
 var additionalTestCases = []testCase{

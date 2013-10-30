@@ -44,17 +44,17 @@ func (e *UnsupportedValueError) Error() string {
 	return fmt.Sprintf("cbor: unsupported value: %s", e.Str)
 }
 
-type MarshalerError struct {
-	Type reflect.Type
-	Err  error
-}
-
 type InvalidUTF8Error struct {
 	Str string
 }
 
 func (e *InvalidUTF8Error) Error() string {
 	return fmt.Sprintf("cbor: string is not valid UTF-8: %s", e.Str)
+}
+
+type MarshalerError struct {
+	Type reflect.Type
+	Err  error
 }
 
 func (e *MarshalerError) Error() string {
@@ -157,8 +157,11 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		n := v.Len()
 		pairs := make(keyValPairs, n)
 		for i, key := range v.MapKeys() {
-			pairs[i].key = e.reflectValue(key)
-			pairs[i].value = v.MapIndex(key)
+			marshaledKey, err := Marshal(key.Interface())
+			if err != nil {
+				e.error(err)
+			}
+			pairs[i] = &keyValPair{marshaledKey, v.MapIndex(key)}
 		}
 		sort.Sort(pairs)
 		e.writeMajorWithNumber(typeMap, uint64(n))
@@ -270,15 +273,16 @@ type keyValPairs []*keyValPair
 func (p keyValPairs) Len() int { return len(p) }
 
 func (p keyValPairs) Less(i, j int) bool {
-	d := len(p[i].key) - len(p[j].key)
+	n1 := len(p[i].key)
+	n2 := len(p[j].key)
 	switch {
-	case d < 0:
+	case n1 < n2:
 		return true
-	case d > 0:
+	case n1 > n2:
 		return false
 	}
 	for k := 0; k < n1; k++ {
-		d := p[i][k] - p[j][k]
+		d := p[i].key[k] - p[j].key[k]
 		switch {
 		case d < 0:
 			return true
@@ -289,6 +293,4 @@ func (p keyValPairs) Less(i, j int) bool {
 	return false
 }
 
-func (d keyValPairs) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
-}
+func (p keyValPairs) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
