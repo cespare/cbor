@@ -16,6 +16,7 @@ type testCase struct {
 
 // http://tools.ietf.org/html/rfc7049#appendix-A
 var rfc7049TestCases = []testCase{
+	// Positive integers
 	{0, "00"},
 	{1, "01"},
 	{10, "0a"},
@@ -33,11 +34,13 @@ var rfc7049TestCases = []testCase{
 	//{-18446744073709551616, "3bffffffffffffffff"},
 	//{-18446744073709551617, "c349010000000000000000"},
 
+	// Negative integers
 	{-1, "20"},
 	{-10, "29"},
 	{-100, "3863"},
 	{-1000, "3903e7"},
 
+	// Floats
 	// Small float test cases omitted because this package does compact small floats down to half-precision.
 	// See additionalTestCases.
 	{1.1, "fb3ff199999999999a"},
@@ -48,14 +51,29 @@ var rfc7049TestCases = []testCase{
 	{math.Inf(1), "fa7f800000"},
 	//{math.NaN(), "fb7ff8000000000000"}, // TODO: NaN?
 	{math.Inf(-1), "faff800000"},
+	// TODO: missing float test cases
 
+	// Simple objects
 	{false, "f4"},
 	{true, "f5"},
 	{nil, "f6"},
+	// TODO: undefined
 
+	// TODO: unused simple numbers
+	// TODO: all tagged examples
+
+	// Byte strings
+	//{[]byte{}, "40"},
+	//{[]byte(1, 2, 3, 4), "4401020304"},
+
+	// Text string
 	{"", "60"},
 	{"a", "6161"},
 	{"IETF", "6449455446"},
+	{"\"\\", "62225c"},
+	{"\u00fc", "62c3bc"},
+	{"\u6c34", "63e6b0b4"},
+	{"\U00010152", "64f0908591"},
 }
 
 var additionalTestCases = []testCase{
