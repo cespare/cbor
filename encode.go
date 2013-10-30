@@ -6,6 +6,7 @@ import (
 	"math"
 	"reflect"
 	"runtime"
+	"sort"
 	"unicode/utf8"
 )
 
@@ -148,6 +149,23 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		for i := 0; i < n; i++ {
 			e.reflectValue(v.Index(i))
 		}
+	case reflect.Map:
+		if v.IsNil() {
+			e.writeSimple(typeNull)
+			return
+		}
+		n := v.Len()
+		pairs := make(keyValPairs, n)
+		for i, key := range v.MapKeys() {
+			pairs[i].key = e.reflectValue(key)
+			pairs[i].value = v.MapIndex(key)
+		}
+		sort.Sort(pairs)
+		e.writeMajorWithNumber(typeMap, uint64(n))
+		for _, pair := range pairs {
+			e.Write(pair.key)
+			e.reflectValue(pair.value)
+		}
 	case reflect.Interface, reflect.Ptr:
 		if v.IsNil() {
 			e.writeSimple(typeNull)
@@ -240,4 +258,37 @@ func (e *encodeState) marshal(v interface{}) (err error) {
 	}()
 	e.reflectValue(reflect.ValueOf(v))
 	return nil
+}
+
+type keyValPair struct {
+	key   []byte // CBOR-encoded
+	value reflect.Value
+}
+
+type keyValPairs []*keyValPair
+
+func (p keyValPairs) Len() int { return len(p) }
+
+func (p keyValPairs) Less(i, j int) bool {
+	d := len(p[i].key) - len(p[j].key)
+	switch {
+	case d < 0:
+		return true
+	case d > 0:
+		return false
+	}
+	for k := 0; k < n1; k++ {
+		d := p[i][k] - p[j][k]
+		switch {
+		case d < 0:
+			return true
+		case d > 0:
+			return false
+		}
+	}
+	return false
+}
+
+func (d keyValPairs) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
 }
