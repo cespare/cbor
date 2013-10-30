@@ -140,7 +140,20 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 			e.Write(s)
 			return
 		}
-		panic("unimplemented")
+		// Slices can be nil (null in CBOR) but otherwise are handled the same way as arrays.
+		fallthrough
+	case reflect.Array:
+		n := v.Len()
+		e.writeMajorWithNumber(typeList, uint64(n))
+		for i := 0; i < n; i++ {
+			e.reflectValue(v.Index(i))
+		}
+	case reflect.Interface, reflect.Ptr:
+		if v.IsNil() {
+			e.writeSimple(typeNull)
+			return
+		}
+		e.reflectValue(v.Elem())
 	default:
 		e.error(&UnsupportedTypeError{v.Type()})
 	}

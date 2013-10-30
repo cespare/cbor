@@ -6,7 +6,7 @@ const (
 	typeNegInt          = 1
 	typeByteString      = 2
 	typeTextString      = 3
-	typeArray           = 4
+	typeList            = 4
 	typeMap             = 5
 	typeTag             = 6
 	typeMajor7          = 7 // Overloaded for multiple types
