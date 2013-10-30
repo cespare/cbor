@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -105,6 +106,33 @@ func TestEncoding(t *testing.T) {
 				fmt.Println(strings.Join(parts, " "))
 				t.Errorf("Input: %#v, expected: 0x%s, actual: 0x%s", test.input, test.expected, actual)
 			}
+		}
+	}
+}
+
+type errTestCase struct {
+	input            interface{}
+	expectedErrRegex string
+}
+
+var errTestCases = []errTestCase{
+	{string([]byte{0xff, 0xfe, 0xfd}), `string is not valid UTF-8`},
+}
+
+func TestEncodingErrors(t *testing.T) {
+	for _, test := range errTestCases {
+		_, err := Marshal(test.input)
+		if err == nil {
+			t.Error("Expected an non-nil error, but err was nil.")
+			continue
+		}
+		r, err2 := regexp.Compile(test.expectedErrRegex)
+		if err2 != nil {
+			t.Error(err2)
+			continue
+		}
+		if !r.MatchString(err.Error()) {
+			t.Errorf("Expected error to match /%s/ but got '%s'", r, err)
 		}
 	}
 }
