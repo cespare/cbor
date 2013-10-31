@@ -17,3 +17,7 @@ package implements CBOR as described in [RFC 7049](http://tools.ietf.org/html/rf
   tag, so maybe don't bother).
 * Handle anonymous struct fields the same way encoding/json does. Skipping this for now because it rachets up
   the complexity significantly.
+* Better test case coverage for error cases in the encoder.
+* encoding/json.Unmarshal will allow for type errors as it decodes and still give the user a best-effort
+  decoded value as well as the error. Is this worth doing?
+* json.{En,De}coder equivalents.
