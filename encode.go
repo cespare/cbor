@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"runtime"
 	"sort"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -129,6 +130,22 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 		}
 		e.writeMajorWithNumber(typeTextString, uint64(len(s)))
 		e.WriteString(s)
+	case reflect.Struct:
+		allFields := cachedFieldsForType(v.Type())
+		fields := make([]structKeyValPair, 0, len(allFields))
+		for _, f := range allFields {
+			value := v.Field(f.index)
+			if !value.IsValid() || f.omitEmpty && isEmptyValue(value) {
+				continue
+			}
+			fields = append(fields, structKeyValPair{f.name, value})
+		}
+		e.writeMajorWithNumber(typeMap, uint64(len(fields)))
+		for _, f := range fields {
+			e.writeMajorWithNumber(typeTextString, uint64(len(f.key)))
+			e.WriteString(f.key)
+			e.reflectValue(f.value)
+		}
 	case reflect.Slice:
 		if v.IsNil() {
 			e.writeSimple(typeNull)
@@ -155,13 +172,13 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 			return
 		}
 		n := v.Len()
-		pairs := make(keyValPairs, n)
+		pairs := make(mapKeyValPairs, n)
 		for i, key := range v.MapKeys() {
 			marshaledKey, err := Marshal(key.Interface())
 			if err != nil {
 				e.error(err)
 			}
-			pairs[i] = &keyValPair{marshaledKey, v.MapIndex(key)}
+			pairs[i] = mapKeyValPair{marshaledKey, v.MapIndex(key)}
 		}
 		sort.Sort(pairs)
 		e.writeMajorWithNumber(typeMap, uint64(n))
@@ -263,16 +280,21 @@ func (e *encodeState) marshal(v interface{}) (err error) {
 	return nil
 }
 
-type keyValPair struct {
+type structKeyValPair struct {
+	key   string
+	value reflect.Value
+}
+
+type mapKeyValPair struct {
 	key   []byte // CBOR-encoded
 	value reflect.Value
 }
 
-type keyValPairs []*keyValPair
+type mapKeyValPairs []mapKeyValPair
 
-func (p keyValPairs) Len() int { return len(p) }
+func (p mapKeyValPairs) Len() int { return len(p) }
 
-func (p keyValPairs) Less(i, j int) bool {
+func (p mapKeyValPairs) Less(i, j int) bool {
 	n1 := len(p[i].key)
 	n2 := len(p[j].key)
 	switch {
@@ -293,4 +315,95 @@ func (p keyValPairs) Less(i, j int) bool {
 	return false
 }
 
-func (p keyValPairs) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p mapKeyValPairs) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+
+// A field represents a single field found in a struct.
+type field struct {
+	name string
+	//tagged    bool
+	//index     []int
+	index     int
+	typ       reflect.Type
+	omitEmpty bool
+}
+
+// fieldsForType returns a list of fields that CBOR recognizes for the given type. Right now that just means
+// every exported field.
+// Tagging rules:
+// - The tag name is "cbor"
+// - Tag with "-" to ignore the field always
+// - Use "omitempty" to indicate the field should be omitted when 0, empty, etc (see encoding/json rules for
+//	 omitempty)
+func fieldsForType(t reflect.Type) []field {
+	fields := []field{}
+	for i := 0; i < t.NumField(); i++ {
+		sf := t.Field(i)
+		if sf.PkgPath != "" { // unexported
+			continue
+		}
+		if sf.Anonymous {
+			continue
+		}
+		tag := sf.Tag.Get("cbor")
+		if tag == "-" {
+			continue
+		}
+		name, options := parseTag(tag)
+		if name == "" {
+			name = sf.Name
+		}
+		fields = append(fields, field{
+			name:      name,
+			index:     i,
+			typ:       sf.Type,
+			omitEmpty: options.Contains("omitempty"),
+		})
+	}
+	return fields
+}
+
+var fieldCache struct {
+	sync.RWMutex
+	m map[reflect.Type][]field
+}
+
+// cachedFieldsForType is a memoized version of fieldsForType.
+func cachedFieldsForType(t reflect.Type) []field {
+	fieldCache.RLock()
+	f := fieldCache.m[t]
+	fieldCache.RUnlock()
+	if f != nil {
+		return f
+	}
+
+	f = fieldsForType(t)
+	if f == nil {
+		f = []field{} // Cache non-nil, empty result to avoid redoing this work.
+	}
+
+	fieldCache.Lock()
+	if fieldCache.m == nil {
+		fieldCache.m = make(map[reflect.Type][]field)
+	}
+	fieldCache.m[t] = f
+	fieldCache.Unlock()
+	return f
+}
+
+func isEmptyValue(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Ptr:
+		return v.IsNil()
+	}
+	return false
+}

@@ -94,18 +94,7 @@ var rfc7049TestCases = []testCase{
 }
 
 var additionalTestCases = []testCase{
-	// Floats
-	{0.0, "fa00000000"},
-	{-0.0, "fa00000000"},
-	{1.0, "fa3f800000"},
-	{1.5, "fa3fc00000"},
-	{65504.0, "fa477fe000"},
-	{5.960464477539063e-08, "fa33800000"},
-	{0.00006103515625, "fa38800000"},
-	{-4.0, "fac0800000"},
-}
-
-var typesTestCases = []testCase{
+	// Integers
 	{int(0), "00"},
 	{int8(0), "00"},
 	{int64(0), "00"},
@@ -122,11 +111,68 @@ var typesTestCases = []testCase{
 	{uint(1000), "1903e8"},
 	{uint(1000000), "1a000f4240"},
 	{uint(1000000000000), "1b000000e8d4a51000"},
+
+	// Floats
+	{0.0, "fa00000000"},
+	{-0.0, "fa00000000"},
+	{1.0, "fa3f800000"},
+	{1.5, "fa3fc00000"},
+	{65504.0, "fa477fe000"},
+	{5.960464477539063e-08, "fa33800000"},
+	{0.00006103515625, "fa38800000"},
+	{-4.0, "fac0800000"},
+
+	// Slices
 	{[]string{"a", "b", "c"}, "83616161626163"},
+
+	// Structs
+	{struct{}{}, "a0"},
+	{(*struct{})(nil), "f6"},
+	//{map[string]interface{}{"Foo": "a", "Bar": float32(1.7), "Baz": map[int]int{0: 0}}, ""},
+	{
+		struct {
+			Foo string
+			Bar int
+		}{"a", 3},
+		"a263466f6f61616342617203",
+	},
+	{
+		struct {
+			foo string
+			Bar int
+			baz float32
+		}{"a", 3, 1.7},
+		"a16342617203",
+	},
+	{
+		struct {
+			Foo string  `cbor:"foo2"`
+			bar int     `cbor:"bar2"` // should be ignored
+			Baz float32 `cbor:"-"`    // also ignored
+		}{"a", 3, 1.7},
+		"a164666f6f326161",
+	},
+	{
+		struct {
+			Foo string      `cbor:",omitempty"`
+			Bar float32     `cbor:",omitempty"`
+			Baz map[int]int `cbor:",omitempty"`
+		}{"a", 1.7, map[int]int{0: 0}},
+		"a363466f6f616163426172fa3fd9999a6342617aa10000",
+	},
+	{
+		struct {
+			Foo  string      `cbor:",omitempty"`
+			Bar  *int        `cbor:",omitempty"`
+			Baz  float32     `cbor:",omitempty"`
+			Quux map[int]int `cbor:",omitempty"`
+		}{"", nil, 0, nil},
+		"a0",
+	},
 }
 
 func TestEncoding(t *testing.T) {
-	for _, suite := range [][]testCase{rfc7049TestCases, additionalTestCases, typesTestCases} {
+	for _, suite := range [][]testCase{rfc7049TestCases, additionalTestCases} {
 		for _, test := range suite {
 			b, err := Marshal(test.input)
 			if err != nil {
@@ -140,7 +186,7 @@ func TestEncoding(t *testing.T) {
 					parts = append(parts, fmt.Sprintf("%08b", b2))
 				}
 				fmt.Println(strings.Join(parts, " "))
-				t.Errorf("Input: %#v, expected: 0x%s, actual: 0x%s", test.input, test.expected, actual)
+				t.Errorf("\nInput: %#v\nexpected: 0x%s\n  actual: 0x%s", test.input, test.expected, actual)
 			}
 		}
 	}

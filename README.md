@@ -10,3 +10,10 @@ package implements CBOR as described in [RFC 7049](http://tools.ietf.org/html/rf
 * Tag for encoding empty strings as nulls
 * Option to turn off unicode validity checking for strings for dat speed
 * Option to allow (a/all) lists to be encoded with indefinite length (or some streaming API)
+* A lower-level API to help people write arbitrary CBOR messages (or at least help them when writing their own
+  `Marshaler`/`Unmarshaler` implementations).
+* Channel, complex, and function values cannot be marshaled by encoding/json, and I'm following suit here. We
+  might be able to put complex numbers into a byte string with a tag or something (but it's not a predefined
+  tag, so maybe don't bother).
+* Handle anonymous struct fields the same way encoding/json does. Skipping this for now because it rachets up
+  the complexity significantly.
